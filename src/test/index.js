@@ -4,11 +4,9 @@ const babel = require('babel-core');
 
 const pluginPath = require.resolve('../');
 
-const outputExpected = name => plugins => {
+const outputExpected = name => (options = {}) => {
   const output = babel.transformFileSync(`${__dirname}/fixtures/${name}.source`, {
-    plugins: [[pluginPath, {
-      plugins: plugins
-    }]]
+    plugins: [[pluginPath, options]]
   }).code.trim();
 
   const expected = fs.readFileSync(`${__dirname}/fixtures/${name}.expected`, 'utf-8').trim();
@@ -17,43 +15,61 @@ const outputExpected = name => plugins => {
 }
 
 test('basic rules', (t) => {
-  const { output, expected } = outputExpected("rules")([]);
+  const { output, expected } = outputExpected("rules")();
   t.equal(output, expected, 'output matches expected');
   t.end();
 });
 
 test('basic declarations', (t) => {
-  const { output, expected } = outputExpected("declarations")([])
+  const { output, expected } = outputExpected("declarations")()
   t.equal(output, expected, 'output matches expected');
   t.end();
 });
 
 test('basic media', (t) => {
-  const { output, expected } = outputExpected("media")([])
+  const { output, expected } = outputExpected("media")()
   t.equal(output, expected, 'output matches expected');
   t.end();
 });
 
 test('different values', (t) => {
-  const { output, expected } = outputExpected("values")([])
+  const { output, expected } = outputExpected("values")()
   t.equal(output, expected, 'output matches expected');
   t.end();
 });
 
 test('basic autoprefixing', (t) => {
-  const { output, expected } = outputExpected("autoprefixer")([require('autoprefixer')])
+  const { output, expected } = outputExpected("autoprefixer")({
+    plugins: [ require('autoprefixer') ]
+  })
   t.equal(output, expected, 'output matches expected');
   t.end();
 });
 
 test('important', (t) => {
-  const { output, expected } = outputExpected("important")([])
+  const { output, expected } = outputExpected("important")()
   t.equal(output, expected, 'output matches expected');
   t.end();
 });
 
 test('names', (t) => {
-  const { output, expected } = outputExpected("names")([])
+  const { output, expected } = outputExpected("names")()
+  t.equal(output, expected, 'output matches expected');
+  t.end();
+});
+
+test('configured tags', (t) => {
+  const { output, expected } = outputExpected("tags")({
+    tags: [ 'other' ]
+  })
+  t.equal(output, expected, 'output matches expected');
+  t.end();
+});
+
+test('configured tags', (t) => {
+  const { output, expected } = outputExpected("keepcall")({
+    keepCall: true
+  })
   t.equal(output, expected, 'output matches expected');
   t.end();
 });

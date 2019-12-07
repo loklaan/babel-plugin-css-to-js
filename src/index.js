@@ -6,7 +6,14 @@ module.exports = function({types: t}) {
   return {
     visitor: {
       TaggedTemplateExpression: function(path, state) {
-        if (path.node.tag.name !== 'css') {
+        const tagName = path.node.tag.name;
+        const pluginsOpts = state.opts.plugins || [];
+        const tagsOpts = state.opts.tags || [ 'css' ];
+        const keepCallOpt = state.opts.keepCall != null
+          ? state.opts.keepCall
+          : false;
+
+        if (!tagsOpts.includes(tagName)) {
           return false;
         }
 
@@ -18,16 +25,18 @@ module.exports = function({types: t}) {
           return acc + quasi.value.raw + expr;
         }, '');
 
-        const pluginsOpts = state.opts.plugins || [];
-
         const plugins = pluginsOpts.map(handlePlugin);
 
         const processed = postcss(plugins)
           .process(css, {parser: safe, from: this.file.opts.filename}).root;
 
         const objectExpression = buildObjectAst(t, processed.nodes, nodeExprs);
-        path.replaceWith(objectExpression);
-
+        if (keepCallOpt) {
+          const callExpression = buildCallExprAst(t, tagName, objectExpression);
+          path.replaceWith(callExpression);
+        } else {
+          path.replaceWith(objectExpression);
+        }
       },
     }
   };
@@ -35,14 +44,13 @@ module.exports = function({types: t}) {
 
 function buildObjectAst(t, nodes, nodeExprs) {
   const properties = nodes.map(node => {
-
     let key, valueExpr;
     if (node.type == 'decl') {
       key = node.prop;
       valueExpr = buildInterpolatedAst(
-        t, 
-        node.important ? `${node.value} !important` : node.value, 
-        nodeExprs, 
+        t,
+        node.important ? `${node.value} !important` : node.value,
+        nodeExprs,
       )[0];
     } else if (node.type == 'rule') {
       key = node.selector;
@@ -51,7 +59,7 @@ function buildObjectAst(t, nodes, nodeExprs) {
       key = `@${node.name} ${node.params}`;
       valueExpr = buildObjectAst(t, node.nodes, nodeExprs);
     }
-    
+
     let [keyExpr, computed] = buildInterpolatedAst(t, key, nodeExprs);
 
     if (node.type == 'decl' && !computed && t.isStringLiteral(keyExpr)) {
@@ -59,10 +67,13 @@ function buildObjectAst(t, nodes, nodeExprs) {
     }
 
     return t.objectProperty(keyExpr, valueExpr, computed)
-
   })
 
   return t.objectExpression(properties);
+}
+
+function buildCallExprAst(t, name, arg) {
+  return t.callExpression(t.identifier(name), [arg])
 }
 
 function isNumeric(x) {
@@ -70,7 +81,6 @@ function isNumeric(x) {
 }
 
 function buildInterpolatedAst(t, value, nodeExprs) {
-
   const { quasis, exprs } = splitExpressions(value);
   if (quasis.length == 2 && quasis[0].length == 0 && quasis[1].length == 0) {
     return [nodeExprs[exprs[0]], true];

@@ -51,6 +51,8 @@ const rule = props => ({
 ```
 {
   "plugins": [["css-to-js", {
+    "tags": ["css"],
+    "keepCall": false,
     "plugins": ["autoprefixer"]
   }]]
 }
